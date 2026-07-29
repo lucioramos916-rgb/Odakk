@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Inmersivo</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #efeae2;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        /* Pantalla de Login */
+        #login-screen {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 300px;
+        }
+        #login-screen input {
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        #login-screen button {
+            background: #00a884;
+            color: white;
+            padding: 10px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        /* Pantalla del Chat */
+        #chat-screen {
+            display: none; /* Oculto hasta que pongan el nombre */
+            width: 100%;
+            max-width: 400px;
+            height: 100%;
+            max-height: 600px;
+            background: #ffffff;
+            flex-direction: column;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .chat-header {
+            background: #00a884;
+            color: white;
+            padding: 15px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #efeae2;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .message {
+            max-width: 75%;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 15px;
+            word-wrap: break-word;
+        }
+        .message.sent {
+            background: #d9fdd3;
+            align-self: flex-end;
+        }
+        .message.received {
+            background: #ffffff;
+            align-self: flex-start;
+        }
+        .message .user {
+            font-size: 11px;
+            font-weight: bold;
+            color: #00a884;
+            display: block;
+            margin-bottom: 3px;
+        }
+        .chat-input {
+            display: flex;
+            padding: 10px;
+            background: #f0f2f5;
+            gap: 5px;
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 20px;
+            outline: none;
+            font-size: 15px;
+        }
+        .chat-input button {
+            background: #00a884;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- PANTALLA DE INGRESO -->
+    <div id="login-screen">
+        <h2>Bienvenido</h2>
+        <p>Por favor, ingresa tu nombre para continuar.</p>
+        <input type="text" id="login-name" placeholder="Ej: Lucio, Madre, Padre..." autocomplete="off" />
+        <button onclick="joinChat()">Entrar al Chat</button>
+    </div>
+
+    <!-- PANTALLA DEL CHAT -->
+    <div id="chat-screen">
+        <div class="chat-header">
+            <span>WhatsApp Inmersivo</span>
+            <span id="display-name" style="font-size: 13px;"></span>
+        </div>
+        <div class="chat-messages" id="messages-container"></div>
+        <div class="chat-input">
+            <input type="text" id="message-input" placeholder="Escribe un mensaje..." autocomplete="off" />
+            <button onclick="sendMessage()">Enviar</button>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let myName = "";
+        let myReadingLanguage = "es"; // Por defecto, todos leen en español
+
+        const loginScreen = document.getElementById('login-screen');
+        const chatScreen = document.getElementById('chat-screen');
+        const messagesContainer = document.getElementById('messages-container');
+        const messageInput = document.getElementById('message-input');
+        const displayName = document.getElementById('display-name');
+
+        // Función para ingresar
+        function joinChat() {
+            const nameInput = document.getElementById('login-name').value.trim();
+            if (!nameInput) {
+                alert("Debes ingresar un nombre.");
+                return;
+            }
+
+            myName = nameInput;
+            
+            // Si el nombre es "Lucio", configuramos su aplicación para que lea en inglés
+            if (myName.toLowerCase() === 'lucio') {
+                myReadingLanguage = 'en';
+            } else {
+                myReadingLanguage = 'es';
+            }
+
+            displayName.innerText = "Usuario: " + myName;
+
+            // Ocultar login, mostrar chat
+            loginScreen.style.display = 'none';
+            chatScreen.style.display = 'flex';
+        }
+
+        // Permitir entrar apretando Enter
+        document.getElementById('login-name').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') joinChat();
+        });
+
+        // Enviar mensaje
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text) return;
+
+            // Enviamos el mensaje al servidor (él se encargará de traducirlo)
+            socket.emit('chat message', { user: myName, text: text });
+            messageInput.value = '';
+        }
+
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Recibir mensaje
+        socket.on('chat message', (data) => {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('message');
+            
+            // Determinar si lo envié yo o lo recibí
+            if (data.user === myName) {
+                msgDiv.classList.add('sent');
+            } else {
+                msgDiv.classList.add('received');
+            }
+
+            // AQUI ESTA LA MAGIA:
+            // Elegimos qué texto mostrar dependiendo de quién está leyendo la pantalla
+            const textToShow = myReadingLanguage === 'en' ? data.text_en : data.text_es;
+
+            msgDiv.innerHTML = `<span class="user">${data.user}</span>${textToShow}`;
+            messagesContainer.appendChild(msgDiv);
+            
+            // Hacer scroll hacia abajo
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        });
+    </script>
+</body>
+</html>

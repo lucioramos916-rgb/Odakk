@@ -151,9 +151,9 @@
 
     <script>
         // Pedir permiso para notificaciones al cargar la página
-            if ("Notification" in window && Notification.permission !== "granted") {
-                Notification.requestPermission();
-            }
+        if ("Notification" in window && Notification.permission !== "granted") {
+            Notification.requestPermission();
+        }
         const socket = io();
         let myName = "";
         let myReadingLanguage = "es"; // Por defecto, todos leen en español
@@ -163,6 +163,7 @@
         const messagesContainer = document.getElementById('messages-container');
         const messageInput = document.getElementById('message-input');
         const displayName = document.getElementById('display-name');
+        const typingIndicator = document.getElementById('typing-indicator'); // Definido de forma global
 
         // Función para ingresar
         function joinChat() {
@@ -198,8 +199,9 @@
             const text = messageInput.value.trim();
             if (!text) return;
 
-            // Enviamos el mensaje al servidor (él se encargará de traducirlo)
+            // Enviamos el mensaje al servidor
             socket.emit('chat message', { user: myName, text: text });
+            socket.value = ''; // Limpieza opcional, mantenemos tu lógica
             messageInput.value = '';
         }
 
@@ -207,26 +209,22 @@
             if (e.key === 'Enter') sendMessage();
         });
 
-        // Recibir mensaje
+        // Recibir mensaje (Único listener global)
         socket.on('chat message', (data) => {
             const msgDiv = document.createElement('div');
             msgDiv.classList.add('message');
             
-            // Determinar si lo envié yo o lo recibí
             if (data.user === myName) {
                 msgDiv.classList.add('sent');
             } else {
                 msgDiv.classList.add('received');
             }
 
-            // AQUI ESTA LA MAGIA:
-            // Elegimos qué texto mostrar dependiendo de quién está leyendo la pantalla
             const textToShow = myReadingLanguage === 'en' ? data.text_en : data.text_es;
 
             msgDiv.innerHTML = `<span class="user">${data.user}</span>${textToShow}`;
             messagesContainer.appendChild(msgDiv);
             
-            // Hacer scroll hacia abajo
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
             
             if (data.user !== myName) {
@@ -237,51 +235,32 @@
                     });
                 }
             }
-
-
-                // ==========================================
-            // PEGA ESTO AQUÍ ABAJO (Afuera del bloque anterior)
-            // ==========================================
-            const typingIndicator = document.getElementById('typing-indicator');
-
-            socket.on('typing', (data) => {
-                if (data.user !== myName) {
-                    typingIndicator.textContent = `${data.user} está escribiendo...`;
-                }
-            });
-
-            socket.on('stop typing', (data) => {
-                if (data.user !== myName) {
-                    typingIndicator.textContent = '';
-                }
-            });
-
         });
 
-        const miInput = document.getElementById('message-input'); // Asegúrate que tu input tenga este id
-        const typingIndicator = document.getElementById('typing-indicator'); // Un div chiquito oculto para mostrar los puntos
-
+        // ==========================================
+        // LÓGICA DE ESCRITURA (GLOBAL Y CORREGIDA)
+        // ==========================================
         let typingTimeout;
 
-        // Cuando el usuario presiona una tecla, avisamos que está escribiendo
+        // Cuando el usuario escribe, usamos "myName" en lugar de "userName"
         messageInput.addEventListener('input', () => {
-            socket.emit('typing', { user: userName });
+            socket.emit('typing', { user: myName });
             
             clearTimeout(typingTimeout);
             typingTimeout = setTimeout(() => {
-                socket.emit('stop typing', { user: userName });
-            }, 1000); // Deja de mostrarlo 1 segundo después de que deja de escribir
+                socket.emit('stop typing', { user: myName });
+            }, 1000);
         });
 
-        // Escuchamos cuando el OTRO está escribiendo
+        // Escuchas globales fuera de cualquier otro evento
         socket.on('typing', (data) => {
-            if (data.user !== userName) {
+            if (data.user !== myName) {
                 typingIndicator.innerText = `${data.user} está escribiendo... 💬`;
             }
         });
 
         socket.on('stop typing', (data) => {
-            if (data.user !== userName) {
+            if (data.user !== myName) {
                 typingIndicator.innerText = '';
             }
         });

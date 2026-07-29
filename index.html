@@ -238,6 +238,24 @@
                 }
             }
 
+
+                // ==========================================
+            // PEGA ESTO AQUÍ ABAJO (Afuera del bloque anterior)
+            // ==========================================
+            const typingIndicator = document.getElementById('typing-indicator');
+
+            socket.on('typing', (data) => {
+                if (data.user !== myName) {
+                    typingIndicator.textContent = `${data.user} está escribiendo...`;
+                }
+            });
+
+            socket.on('stop typing', (data) => {
+                if (data.user !== myName) {
+                    typingIndicator.textContent = '';
+                }
+            });
+
         });
 
         const miInput = document.getElementById('message-input'); // Asegúrate que tu input tenga este id

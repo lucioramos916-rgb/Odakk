@@ -142,6 +142,10 @@
     </div>
 
     <script>
+        // Pedir permiso para notificaciones al cargar la página
+            if ("Notification" in window && Notification.permission !== "granted") {
+                Notification.requestPermission();
+            }
         const socket = io();
         let myName = "";
         let myReadingLanguage = "es"; // Por defecto, todos leen en español
@@ -216,6 +220,44 @@
             
             // Hacer scroll hacia abajo
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            if (data.user !== myName) {
+                if ("Notification" in window && Notification.permission === "granted") {
+                    new Notification(`Nuevo mensaje de ${data.user}`, {
+                        body: textToShow,
+                        icon: 'https://cdn-icons-png.flaticon.com/512/733/733585.png'
+                    });
+                }
+            }
+
+        });
+
+        const miInput = document.getElementById('message-input'); // Asegúrate que tu input tenga este id
+        const typingIndicator = document.getElementById('typing-indicator'); // Un div chiquito oculto para mostrar los puntos
+
+        let typingTimeout;
+
+        // Cuando el usuario presiona una tecla, avisamos que está escribiendo
+        messageInput.addEventListener('input', () => {
+            socket.emit('typing', { user: userName });
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.emit('stop typing', { user: userName });
+            }, 1000); // Deja de mostrarlo 1 segundo después de que deja de escribir
+        });
+
+        // Escuchamos cuando el OTRO está escribiendo
+        socket.on('typing', (data) => {
+            if (data.user !== userName) {
+                typingIndicator.innerText = `${data.user} está escribiendo... 💬`;
+            }
+        });
+
+        socket.on('stop typing', (data) => {
+            if (data.user !== userName) {
+                typingIndicator.innerText = '';
+            }
         });
     </script>
 </body>

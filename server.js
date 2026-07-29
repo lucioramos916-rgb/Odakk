@@ -47,6 +47,16 @@ io.on('connection', (socket) => {
 
         io.emit('chat message', finalMessage);
     });
+
+    // --- AGREGAS ESTO AQUÍ ABAJO ---
+    socket.on('typing', (data) => {
+        socket.broadcast.emit('typing', data);
+    });
+
+    socket.on('stop typing', (data) => {
+        socket.broadcast.emit('stop typing', data);
+    });
+    // --------------------------------
 });
 
 // AQUÍ ESTÁ EL CAMBIO CLAVE PARA RENDER:

@@ -1,13 +1,14 @@
 {
-  "name": "whatsapp-inmersion",
+  "name": "whatsapp-clone",
   "version": "1.0.0",
-  "description": "Chat bilingue para ingles",
+  "description": "",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "socket.io": "^4.7.5"
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2",
+    "web-push": "^3.6.6"
   }
 }
